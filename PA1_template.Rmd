@@ -1,25 +1,102 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template"
+author: "Jon Breece"
+date: "August 28, 2016"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
+## Project 1: Introduction and Loading of Data
+The code below read in the csv of the activity data.
+```{r intro, echo=TRUE, warning=FALSE}
+activity <- read.csv("activity.csv")
+class(activity)
+```
 
 
+## Mean total number of steps taken per day
+Below is a table of the total of steps per day and a histogram of the total number of step taken each day.
 
-## What is mean total number of steps taken per day?
+```{r meanmedian, echo=TRUE, warning=FALSE, message=FALSE}
+library(dplyr)
+total_steps <- activity %>%
+  group_by(date) %>%
+  summarise(total = sum(steps))
 
+total_steps
 
+hist(total_steps$total)
 
-## What is the average daily activity pattern?
+mean_steps <- mean(total_steps$total, na.rm = TRUE)
 
+median_steps <- median(total_steps$total, na.rm = TRUE)
+```
 
+The mean number of steps is `r as.integer(mean_steps)`, and the median number of steps is `r median_steps`
+
+## Average daily activity pattern
+Below is a time series plot of the average number of steps taken per interval.
+
+```{r dailyactivity, echo = TRUE}
+library(lattice)
+mean_interval <- activity %>%
+  group_by(interval) %>%
+  summarise(mean = mean(steps, na.rm = TRUE))
+
+xyplot(mean ~ interval, data = mean_interval, type = "l")
+
+arrange(mean_interval,desc(mean))
+```
+
+The 5-minute interval with the highest average steps is 835.
 
 ## Imputing missing values
+The code below substitutes the average number of steps per interval for missing values (e.g., NA).
+```{r missingvalues, echo=TRUE, warning=FALSE}
 
+sum(is.na(activity$steps))
 
+activity2 <- left_join(activity,mean_interval,by="interval")
+activity2[is.na(activity2$steps),]$steps <- activity2[is.na(activity2$steps),]$mean
 
-## Are there differences in activity patterns between weekdays and weekends?
+total_steps2 <- activity2 %>%
+  group_by(date) %>%
+  summarise(total = sum(steps))
+
+hist(total_steps2$total)
+
+mean_steps2 <- mean(total_steps2$total)
+
+median_steps2 <- median(total_steps2$total)
+
+```
+For the dataset with the imputed values (e.g., activity2), the mean number of steps is `r as.integer(mean_steps2)`, and the median number of steps is `r as.integer(median_steps2)`
+
+## Activity patterns for weekday and weekends
+
+```{r weekdays, echo=TRUE}
+activity2$day <- weekdays(as.Date(activity2$date))
+
+weekend <- function(day) {if (day %in% c('Saturday','Sunday')) 
+  {
+        "weekend"
+  } else {
+        "weekday"
+  }
+}
+
+activity2$weekend <- sapply(activity2$day, weekend)
+activity2$weekend <- as.factor(activity2$weekend)
+
+mean_interval2 <- activity2 %>%
+  group_by(interval, weekend) %>%
+  summarise(mean = mean(steps))
+
+xyplot(mean ~ interval | weekend, data= mean_interval2, type = "l")
+
+```
+
+There is a difference in the pattern for weekends and weekdays.
